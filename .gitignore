@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Backend
+backend/.env
+backend/venv/
+backend/uploads/
+backend/faiss_index/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.log
+frontend/.env
+frontend/.env.local
+
+# Environment files
+.env
+.env.local
+*.local
+
+# OS and editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
