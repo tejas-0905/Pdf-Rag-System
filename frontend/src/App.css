@@ -117,6 +117,12 @@ h2 {
   box-shadow: 0 0 0 4px rgba(191, 63, 63, 0.14);
 }
 
+.api-pill.waking .status-dot,
+.api-pill.checking .status-dot {
+  background: #b7791f;
+  box-shadow: 0 0 0 4px rgba(183, 121, 31, 0.14);
+}
+
 .workspace {
   max-width: 1220px;
   margin: 0 auto;

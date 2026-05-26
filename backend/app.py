@@ -28,6 +28,7 @@ app.add_middleware(
 
 # Global vectorstore
 vectorstore = None
+embeddings_model = None
 
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -54,15 +55,22 @@ def split_text(text):
     return splitter.split_text(text)
 
 # Create embeddings
+def get_embeddings_model():
+    global embeddings_model
+
+    if embeddings_model is None:
+        from langchain_community.embeddings import HuggingFaceEmbeddings
+
+        embeddings_model = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
+        )
+
+    return embeddings_model
+
 def create_vector_store(chunks):
-    from langchain_community.embeddings import HuggingFaceEmbeddings
     from langchain_community.vectorstores import FAISS
 
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
-    )
-
-    vector_db = FAISS.from_texts(chunks, embeddings)
+    vector_db = FAISS.from_texts(chunks, get_embeddings_model())
 
     return vector_db
 

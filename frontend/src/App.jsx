@@ -2,7 +2,7 @@ import axios from 'axios'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://pdf-rag-system-x4e0.onrender.com'
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
 
 const suggestedQuestions = [
   'Summarize this document',
@@ -53,14 +53,14 @@ function App() {
 
     async function checkApiStatus() {
       try {
-        await axios.get(`${API_BASE_URL}/`, { timeout: 4000 })
+        await axios.get(`${API_BASE_URL}/health`, { timeout: 20000 })
 
         if (isActive) {
           setApiStatus('online')
         }
       } catch {
         if (isActive) {
-          setApiStatus('offline')
+          setApiStatus('waking')
         }
       }
     }
@@ -118,6 +118,7 @@ function App() {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        timeout: 180000,
         onUploadProgress: (event) => {
           if (!event.total) {
             return
@@ -171,9 +172,15 @@ function App() {
     setError('')
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/ask`, {
-        question: cleanQuestion,
-      })
+      const response = await axios.post(
+        `${API_BASE_URL}/ask`,
+        {
+          question: cleanQuestion,
+        },
+        {
+          timeout: 90000,
+        },
+      )
 
       setMessages((current) => [
         ...current,
@@ -458,6 +465,10 @@ function statusLabel(status) {
 
   if (status === 'offline') {
     return 'Offline'
+  }
+
+  if (status === 'waking') {
+    return 'Waking'
   }
 
   return 'Checking'
