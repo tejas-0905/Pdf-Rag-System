@@ -44,9 +44,17 @@ class VectorStore:
     def similarity_search(self, question, k=3):
         question_vector = self.vectorizer.transform([question])
         scores = cosine_similarity(question_vector, self.matrix).flatten()
-        ranked_indices = scores.argsort()[::-1][:k]
+        ranked_indices = scores.argsort()[::-1]
+        relevant_chunks = [
+            self.chunks[index]
+            for index in ranked_indices[:k]
+            if scores[index] > 0
+        ]
 
-        return [self.chunks[index] for index in ranked_indices if scores[index] > 0]
+        if relevant_chunks:
+            return relevant_chunks
+
+        return self.chunks[:k]
 
 # Extract text from PDF
 def extract_text_from_pdf(pdf_path):
@@ -66,12 +74,13 @@ def split_text(text):
     start = 0
 
     while start < len(text):
-        chunk = text[start:start + chunk_size].strip()
+        end = start + chunk_size
+        chunk = text[start:end].strip()
 
         if chunk:
             chunks.append(chunk)
 
-        start += chunk_size - chunk_overlap
+        start = end - chunk_overlap
 
     return chunks
 
@@ -142,16 +151,11 @@ async def ask_question(data: dict):
 
     docs = vectorstore.similarity_search(question, k=3)
 
-    if not docs:
-        raise HTTPException(
-            status_code=404,
-            detail="No relevant context found in the uploaded PDF.",
-        )
-
     context = "\n".join(docs)
 
     prompt = f"""
-    Answer the question based on the context below.
+    Answer the question using the context below.
+    If the context is incomplete, give the best possible answer from the available document text and say what is missing.
 
     Context:
     {context}
