@@ -1,9 +1,6 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pypdf import PdfReader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
 from openai import OpenAI, OpenAIError
 import os
 from dotenv import load_dotenv
@@ -33,9 +30,7 @@ app.add_middleware(
 vectorstore = None
 
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
-
-if not os.path.exists(UPLOAD_DIR):
-    os.makedirs(UPLOAD_DIR)
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # Extract text from PDF
 def extract_text_from_pdf(pdf_path):
@@ -49,6 +44,8 @@ def extract_text_from_pdf(pdf_path):
 
 # Split text
 def split_text(text):
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=500,
         chunk_overlap=100
@@ -58,6 +55,9 @@ def split_text(text):
 
 # Create embeddings
 def create_vector_store(chunks):
+    from langchain_community.embeddings import HuggingFaceEmbeddings
+    from langchain_community.vectorstores import FAISS
+
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
@@ -161,3 +161,7 @@ async def ask_question(data: dict):
 @app.get("/")
 def home():
     return {"message": "PDF RAG API Running"}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
