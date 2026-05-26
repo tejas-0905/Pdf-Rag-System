@@ -2,6 +2,8 @@ from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pypdf import PdfReader
 from openai import OpenAI, OpenAIError
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 import os
 from dotenv import load_dotenv
 import shutil
@@ -28,10 +30,23 @@ app.add_middleware(
 
 # Global vectorstore
 vectorstore = None
-embeddings_model = None
 
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+
+class VectorStore:
+    def __init__(self, chunks):
+        self.chunks = chunks
+        self.vectorizer = TfidfVectorizer(stop_words="english")
+        self.matrix = self.vectorizer.fit_transform(chunks)
+
+    def similarity_search(self, question, k=3):
+        question_vector = self.vectorizer.transform([question])
+        scores = cosine_similarity(question_vector, self.matrix).flatten()
+        ranked_indices = scores.argsort()[::-1][:k]
+
+        return [self.chunks[index] for index in ranked_indices if scores[index] > 0]
 
 # Extract text from PDF
 def extract_text_from_pdf(pdf_path):
@@ -45,34 +60,30 @@ def extract_text_from_pdf(pdf_path):
 
 # Split text
 def split_text(text):
-    from langchain_text_splitters import RecursiveCharacterTextSplitter
+    chunk_size = 500
+    chunk_overlap = 100
+    chunks = []
+    start = 0
 
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=500,
-        chunk_overlap=100
-    )
+    while start < len(text):
+        chunk = text[start:start + chunk_size].strip()
 
-    return splitter.split_text(text)
+        if chunk:
+            chunks.append(chunk)
+
+        start += chunk_size - chunk_overlap
+
+    return chunks
 
 # Create embeddings
-def get_embeddings_model():
-    global embeddings_model
-
-    if embeddings_model is None:
-        from langchain_community.embeddings import HuggingFaceEmbeddings
-
-        embeddings_model = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
+def create_vector_store(chunks):
+    if not chunks:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not extract readable text from this PDF.",
         )
 
-    return embeddings_model
-
-def create_vector_store(chunks):
-    from langchain_community.vectorstores import FAISS
-
-    vector_db = FAISS.from_texts(chunks, get_embeddings_model())
-
-    return vector_db
+    return VectorStore(chunks)
 
 def get_openai_client():
     base_url = os.getenv("LLM_BASE_URL")
@@ -131,7 +142,13 @@ async def ask_question(data: dict):
 
     docs = vectorstore.similarity_search(question, k=3)
 
-    context = "\n".join([doc.page_content for doc in docs])
+    if not docs:
+        raise HTTPException(
+            status_code=404,
+            detail="No relevant context found in the uploaded PDF.",
+        )
+
+    context = "\n".join(docs)
 
     prompt = f"""
     Answer the question based on the context below.

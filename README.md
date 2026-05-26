@@ -1,6 +1,6 @@
 # PDF RAG System
 
-A FastAPI + React application for uploading PDFs, indexing them with embeddings, and asking questions over the indexed document using an OpenAI-compatible LLM provider such as Groq.
+A FastAPI + React application for uploading PDFs, indexing them with lightweight TF-IDF retrieval, and asking questions over the indexed document using an OpenAI-compatible LLM provider such as Groq.
 
 ## Project Structure
 
@@ -85,7 +85,15 @@ LLM_MODEL=llama-3.1-8b-instant
 Render start command:
 
 ```bash
-cd backend && uvicorn app:app --host 0.0.0.0 --port $PORT
+uvicorn app:app --host 0.0.0.0 --port $PORT
+```
+
+If you create the service manually, use:
+
+```text
+Root Directory: backend
+Build Command: pip install -r requirements.txt
+Start Command: uvicorn app:app --host 0.0.0.0 --port $PORT
 ```
 
 ## Deploy Frontend To Vercel
